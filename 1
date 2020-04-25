@@ -6,9 +6,9 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
 WORKDIR /src
-COPY ["docker_web/docker_web.fsproj", "docker_web/"]
+COPY ["docker_web.fsproj", "docker_web/"]
 RUN dotnet restore "docker_web/docker_web.fsproj"
-COPY . .
+COPY . /src/docker_web/.:wq
 WORKDIR "/src/docker_web"
 RUN dotnet build "docker_web.fsproj" -c Release -o /app/build
 
