@@ -52,7 +52,7 @@ node {
         script {
             sshagent (credentials: ['podman-master-ssh-key']) {
                 sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 uptime'
-              //  sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 sudo docker rm -f webdocker' 
+               sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 sudo docker rm -f webdocker' 
                 sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 sudo docker run -d --name webdocker -it -p 8089:80 ryasmeen/docker_web'
             }
         }
