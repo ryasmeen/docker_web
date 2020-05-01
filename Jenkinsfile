@@ -52,7 +52,7 @@ pipeline {
         }
     }
 
-        stage('Test Dev') {
+/*         stage('Test Dev') {
                 steps {
                         script{
                                 sh "${CMD_DEV} > commandResult"
@@ -66,7 +66,17 @@ pipeline {
                                 }
                         }
                 }
+        } */
+
+    stage ('Test Dev') {
+                steps {
+                        script{
+                                sh './testA.sh'
+            }
         }
+    }
+
+          
 
     stage ('Deploy To UAT') {
                 steps {
@@ -80,7 +90,7 @@ pipeline {
         }
     }
 
-        stage('Test UAT') {
+       /*  stage('Test UAT') {
                 steps {
                         script{
                                 sh "${CMD_UAT} > commandResult"
@@ -94,7 +104,16 @@ pipeline {
                                 }
                         }
                 }
+        } */
+
+    stage ('Test UAT') {
+                steps {
+                        script{
+                                sh './testB.sh'
+            }
         }
+    }
+
 
         stage('Deploy to Azure') {
                                 steps {
