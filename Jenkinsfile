@@ -5,17 +5,20 @@ pipeline {
     dockerImage = ''
     HOSTA = "192.168.1.234"
     HOSTB = "192.168.1.241"
-    CHECK_URL_DEV = "http://192.168.1.234:8001"
-    CMD_DEV = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_DEV}"
-    CHECK_URL_UAT = "http://192.168.1.241:8001"
-    CMD_UAT = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_UAT}"
-    CHECK_URL_AZURE = "http://docker-azure-jenkins-demo.centralus.azurecontainer.io/"
-    CMD_AZURE = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_AZURE}"
+    DPORT = "8001"
+    SPORT = "80"
     webAppResourceGroup = 'rehana_app_services'
     webAppResourcePlan = 'ryasmeen-app-service-plan'
     webAppName = 'docker-azure-jenkins-demo'
     imageName = 'docker_web'
     imageWithTag = '1.0'
+    containerDomain = "centralus.azurecontainer.io"
+    CHECK_URL_DEV = "http://${HOSTA}:${DPORT}"
+    CMD_DEV = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_DEV}"
+    CHECK_URL_UAT = "http://{HOSTB}:${DPORT}"
+    CMD_UAT = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_UAT}"
+    CHECK_URL_AZURE = "http://${webAppName}.${containerDomain}/"
+    CMD_AZURE = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_AZURE}"
   }
   agent any
   stages {
@@ -46,7 +49,7 @@ pipeline {
                                 sshagent (credentials: ['caas-master-ssh-key']) {
                                         sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} uptime'
                                         sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker rm -f ${webAppName}'
-                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker run -d --name ${webAppName} -it -p 8001:80 ${registry}:${imageWithTag}'
+                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker run -d --name ${webAppName} -it -p ${DPORT}:${SPORT} ${registry}:${imageWithTag}'
                                 }
             }
         }
@@ -84,7 +87,7 @@ pipeline {
                                 sshagent (credentials: ['podman-master-ssh-key']) {
                                         sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} uptime'
                                         sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} sudo docker rm -f ${webAppName}'
-                                        sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} sudo docker run -d --name ${webAppName} -it -p 8001:80 ${registry}:${imageWithTag}'
+                                        sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} sudo docker run -d --name ${webAppName} -it -p ${DPORT}:${SPORT} ${registry}:${imageWithTag}'
                                 }
             }
         }
