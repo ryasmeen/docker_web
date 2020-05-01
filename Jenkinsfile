@@ -1,75 +1,133 @@
-node {
-    def app
-    stage('Clone repository') {
-        /* Let's make sure we have the repository cloned to our workspace */
-
-        checkout scm
+pipeline {
+  environment {
+    registry = "ryasmeen/docker_web"
+    registryCredential = 'docker-hub-credentials'
+    dockerImage = ''
+    HOSTA = "192.168.1.234"
+    HOSTB = "192.168.1.241"
+    CHECK_URL_DEV = "http://192.168.1.234:8001"
+    CMD_DEV = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_DEV}"
+    CHECK_URL_UAT = "http://192.168.1.241:8001"
+    CMD_UAT = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_UAT}"
+    CHECK_URL_AZURE = "http://docker-azure-jenkins-demo.centralus.azurecontainer.io/"
+    CMD_AZURE = "curl --write-out %{http_code} --silent --output /dev/null ${CHECK_URL_AZURE}"
+    webAppResourceGroup = 'rehana_app_services'
+    webAppResourcePlan = 'ryasmeen-app-service-plan'
+    webAppName = 'docker-azure-jenkins-demo'
+    imageName = 'docker_web'
+    imageWithTag = '1.0'
+  }
+  agent any
+  stages {
+    stage('Cloning Git Repo') {
+      steps {
+        git 'https://github.com/ryasmeen/docker_web.git'
+      }
     }
-
-    stage('Build image') {
-        /* This builds the actual image; synonymous to
-         * docker build on the command line */
-
-        app = docker.build("ryasmeen/docker_web")
-    }
-
-    stage('Push image') {
-        /* Finally, we'll push the image with two tags:
-         * First, the incremental build number from Jenkins
-         * Second, the 'latest' tag.
-         * Pushing multiple tags is cheap, as all the layers are reused. */
-        docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
-            app.push("${env.BUILD_NUMBER}")
-            app.push("latest")
-        }
-    }
-
-    stage ('Deploy To Dev') {
+    stage('Building image') {
+      steps{
         script {
-            sshagent (credentials: ['caas-master-ssh-key']) {
-                sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen 192.168.1.234 uptime'
-                sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen 192.168.1.234 sudo docker rm -f webdocker'
-                sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen 192.168.1.234 sudo docker run -d --name webdocker  -it -p 8089:80 ryasmeen/docker_web'
+          dockerImage = docker.build registry + ":1.0"
+        }
+      }
+    }
+     stage('Push - Deploy Image') {
+      steps {
+        script {
+          docker.withRegistry( '', registryCredential ) {
+            dockerImage.push()
+          }
+        }
+      }
+    }
+        stage ('Deploy To Dev') {
+                steps {
+                        script {
+                                sshagent (credentials: ['caas-master-ssh-key']) {
+                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} uptime'
+                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker rm -f ${webAppName}'
+                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker run -d --name ${webAppName} -it -p 8001:80 ${registry}:${imageWithTag}'
+                                }
             }
         }
     }
-          	
-	/* stage('Test Dev') {                          
-	    script{
-				sh "curl --write-out %{http_code} --silent --output /dev/null http://192.168.1.234:8089 > commandResult"
-				env.status = readFile('commandResult').trim()
-				sh "echo ${env.status}"
-				if (env.status == '200') {
-					currentBuild.result = "SUCCESS"
-				}
-				else {
-					currentBuild.result = "FAILURE"
-				}
-		}
-	} */
-        
-    stage ('Deploy To Prod') {
-        script {
-            sshagent (credentials: ['podman-master-ssh-key']) {
-                sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 uptime'
-               sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 sudo docker rm -f webdocker' 
-                sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 192.168.1.241 sudo docker run -d --name webdocker -it -p 8089:80 ryasmeen/docker_web'
+
+        stage('Test Dev') {
+                steps {
+                        script{
+                                sh "${CMD_DEV} > commandResult"
+                                env.status = readFile('commandResult').trim()
+                                sh "echo ${env.status}"
+                                if (env.status == '200') {
+                                                currentBuild.result = "SUCCESS"
+                                }
+                                else {
+                                                currentBuild.result = "FAILURE"
+                                }
+                        }
+                }
+        }
+
+    stage ('Deploy To UAT') {
+                steps {
+                        script {
+                                sshagent (credentials: ['podman-master-ssh-key']) {
+                                        sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} uptime'
+                                        sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} sudo docker rm -f ${webAppName}'
+                                        sh 'ssh -o StrictHostKeyChecking=no -l amohamm2 ${HOSTB} sudo docker run -d --name ${webAppName} -it -p 8001:80 ${registry}:${imageWithTag}'
+                                }
             }
         }
     }
-	
-	/* stage('Test Prod') {                          
-	    script{
-				sh "curl --write-out %{http_code} --silent --output /dev/null http://192.168.1.241:8089 > commandResult"
-				env.status = readFile('commandResult').trim()
-				sh "echo ${env.status}"
-				if (env.status == '200') {
-					currentBuild.result = "SUCCESS"
-				}
-				else {
-					currentBuild.result = "FAILURE"
-				}
-		}
-	} */
+
+        stage('Test UAT') {
+                steps {
+                        script{
+                                sh "${CMD_UAT} > commandResult"
+                                env.status = readFile('commandResult').trim()
+                                sh "echo ${env.status}"
+                                if (env.status == '200') {
+                                                currentBuild.result = "SUCCESS"
+                                }
+                                else {
+                                                currentBuild.result = "FAILURE"
+                                }
+                        }
+                }
+        }
+
+        stage('Deploy to Azure') {
+                                steps {
+                                                script{
+                                                                // login Azure
+                                                                withCredentials([azureServicePrincipal('ryazsvprincipal')]) {
+                                                                sh '''
+                                                                az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
+                                                                az account set -s $AZURE_SUBSCRIPTION_ID
+                                                                '''
+                                                               //sh "az webapp create -g ${webAppResourceGroup} -p ${webAppResourcePlan} -n ${webAppName} -i ${registry}:${imageWithTag}"
+                                                                az container create --resource-group ${webAppResourceGroup} --name ${webAppName}  --image ${registry}:${imageWithTag} --dns-name-label ${webAppName} --ports 80
+																}
+                                                        }
+                                        }
+                        }
+
+
+        stage('Test Azure App') {
+                steps {
+                        script{
+                                sh "${CMD_AZURE} > commandResult"
+                                env.status = readFile('commandResult').trim()
+                                sh "echo ${env.status}"
+                                if (env.status == '200') {
+                                                currentBuild.result = "SUCCESS"
+                                }
+                                else {
+                                                currentBuild.result = "FAILURE"
+                                }
+                        }
+                }
+        }
+
+     }
 }
-
