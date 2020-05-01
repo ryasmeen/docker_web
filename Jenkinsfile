@@ -106,7 +106,7 @@ pipeline {
                                                                 az account set -s $AZURE_SUBSCRIPTION_ID
                                                                 '''
                                                                //sh "az webapp create -g ${webAppResourceGroup} -p ${webAppResourcePlan} -n ${webAppName} -i ${registry}:${imageWithTag}"
-                                                                az container create --resource-group ${webAppResourceGroup} --name ${webAppName}  --image ${registry}:${imageWithTag} --dns-name-label ${webAppName} --ports 80
+                                                                sh "az container create --resource-group ${webAppResourceGroup} --name ${webAppName}  --image ${registry}:${imageWithTag} --dns-name-label ${webAppName} --ports 80"
 																}
                                                         }
                                         }
