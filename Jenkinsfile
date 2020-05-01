@@ -4,7 +4,7 @@ pipeline {
     registryCredential = 'docker-hub-credentials'
     dockerImage = ''
     HOSTA = "192.168.1.234"
-    HOSTB = "192.168.1.241"
+    HOSTB = "192.168.1.242"
     DPORT = "8001"
     SPORT = "80"
     webAppResourceGroup = 'rehana_app_services'
@@ -47,39 +47,21 @@ pipeline {
                 steps {
                         script {
                                 sshagent (credentials: ['caas-master-ssh-key']) {
-                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} uptime'
-                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker rm -f ${webAppName}'
-                                        sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker run -d --name ${webAppName} -it -p ${DPORT}:${SPORT} ${registry}:${imageWithTag}'
+                                       sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} uptime'
+                                       sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker rm -f ${webAppName}'
+                                       sh 'ssh -o StrictHostKeyChecking=no -l ryasmeen ${HOSTA} sudo docker run -d --name ${webAppName} -it -p ${DPORT}:${SPORT} ${registry}:${imageWithTag}'
                                 }
             }
         }
     }
-
-/*         stage('Test Dev') {
-                steps {
-                        script{
-                                sh "${CMD_DEV} > commandResult"
-                                env.status = readFile('commandResult').trim()
-                                sh "echo ${env.status}"
-                                if (env.status == '200') {
-                                                currentBuild.result = "SUCCESS"
-                                }
-                                else {
-                                                currentBuild.result = "FAILURE"
-                                }
-                        }
-                }
-        } */
 
     stage ('Test Dev') {
                 steps {
                         script{
-                                sh './test.sh ${HOSTA} ${DPORT}'
+                                sh './test.sh -w ${HOSTA} -p ${DPORT}'
             }
         }
     }
-
-          
 
     stage ('Deploy To UAT') {
                 steps {
@@ -93,63 +75,36 @@ pipeline {
         }
     }
 
-       /*  stage('Test UAT') {
-                steps {
-                        script{
-                                sh "${CMD_UAT} > commandResult"
-                                env.status = readFile('commandResult').trim()
-                                sh "echo ${env.status}"
-                                if (env.status == '200') {
-                                                currentBuild.result = "SUCCESS"
-                                }
-                                else {
-                                                currentBuild.result = "FAILURE"
-                                }
-                        }
-                }
-        } */
-
     stage ('Test UAT') {
                 steps {
                         script{
-                                sh './test.sh ${HOSTB} ${DPORT}'
+                                sh './test.sh -w ${HOSTB} -p ${DPORT}'
             }
         }
     }
 
-
-        stage('Deploy to Azure') {
-                                steps {
-                                                script{
-                                                                // login Azure
-                                                                withCredentials([azureServicePrincipal('ryazsvprincipal')]) {
-                                                                sh '''
-                                                                az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
-                                                                az account set -s $AZURE_SUBSCRIPTION_ID
-                                                                '''
-                                                               //sh "az webapp create -g ${webAppResourceGroup} -p ${webAppResourcePlan} -n ${webAppName} -i ${registry}:${imageWithTag}"
-                                                                sh "az container create --resource-group ${webAppResourceGroup} --name ${webAppName}  --image ${registry}:${imageWithTag} --dns-name-label ${webAppName} --ports 80"
-																}
-                                                        }
-                                        }
+    stage('Deploy to Azure') {
+         steps {
+                 script{
+                        // login Azure
+                        withCredentials([azureServicePrincipal('ryazsvprincipal')]) {
+                        sh '''
+                        az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
+                        az account set -s $AZURE_SUBSCRIPTION_ID
+                        '''
+                        //sh "az webapp create -g ${webAppResourceGroup} -p ${webAppResourcePlan} -n ${webAppName} -i ${registry}:${imageWithTag}"
+                        sh "az container create --resource-group ${webAppResourceGroup} --name ${webAppName}  --image ${registry}:${imageWithTag} --dns-name-label ${webAppName} --ports 80"
+                             }
                         }
-
-
-        stage('Test Azure App') {
-                steps {
-                        script{
-                                sh "${CMD_AZURE} > commandResult"
-                                env.status = readFile('commandResult').trim()
-                                sh "echo ${env.status}"
-                                if (env.status == '200') {
-                                                currentBuild.result = "SUCCESS"
-                                }
-                                else {
-                                                currentBuild.result = "FAILURE"
-                                }
+                    }
+                 }
+     stage ('Azure') {
+           steps {
+                  script{
+                         sh './test.sh -w "${webAppName}.${containerDomain}" -p ${SPORT}'
                         }
-                }
-        }
+                   }
+           }
 
      }
 }
