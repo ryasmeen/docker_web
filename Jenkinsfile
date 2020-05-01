@@ -74,7 +74,7 @@ pipeline {
     stage ('Test Dev') {
                 steps {
                         script{
-                                sh './testA.sh'
+                                sh './test.sh ${HOSTA} ${DPORT}'
             }
         }
     }
@@ -112,7 +112,7 @@ pipeline {
     stage ('Test UAT') {
                 steps {
                         script{
-                                sh './testB.sh'
+                                sh './test.sh ${HOSTB} ${DPORT}'
             }
         }
     }
